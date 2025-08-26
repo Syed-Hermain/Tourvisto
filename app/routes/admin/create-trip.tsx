@@ -12,7 +12,7 @@ import {
 } from "@syncfusion/ej2-react-maps";
 import { world_map } from "~/constants/world_map";
 import { account } from "~/appwrite/client";
-
+import { useNavigate } from "react-router";
 export const loader = async () => {
   const response = await fetch(
     "https://restcountries.com/v3.1/all?fields=flag,name,latlng,maps"
@@ -34,6 +34,7 @@ export const loader = async () => {
 
 const CreateTrip = ({ loaderData }: Route.ComponentProps) => {
   const countries = loaderData as Country[];
+  const navigate = useNavigate();
 
   const [formData, setFormData] = useState<TripFormData>({
     country: countries[0]?.name || "",
@@ -77,8 +78,27 @@ const CreateTrip = ({ loaderData }: Route.ComponentProps) => {
     }
 
     try{
-      console.log('user', user);
-      console.log('formData', formData);
+      const response = await fetch("/api/create-trip", {
+          method: "POST",
+          headers: {
+              "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+              country: formData.country,
+              numberOfDays: formData.duration,
+              travelStyle: formData.travelStyle,
+              interest: formData.interest,
+              budget: formData.budget,
+              groupType: formData.groupType,
+              userId: user.$id,
+          })
+        })
+
+        const result: CreateTripResponse = await response.json();
+
+        if(result?.id) navigate(`/trips/${result.id}`)
+          else console.error('Failed to generate a trip')
+        
     } catch(e){
       console.log("Error generating trip")
     } finally {
