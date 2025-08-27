@@ -1,42 +1,106 @@
-import React from 'react'
-import { Header } from '~/components'
-import type { LoaderFunctionArgs } from "react-router";
-import { getTripById, getAllTrips } from '~/appwrite/trips';
-import { parseTripData } from 'lib/utils';
-import type { Route } from "./+types/trips";
+// src/routes/trips.tsx
+import {
+  type LoaderFunctionArgs,        // ← loader args type
+                     // ← for correct headers, caching, etc.
+  useLoaderData,             // ← grab loader return on the client
+  useNavigate,
+  useSearchParams
+} from "react-router";
+import { Header, TripCard } from "~/components";
+import { PagerComponent } from "@syncfusion/ej2-react-grids";
+import { getAllTrips } from "~/appwrite/trips";
+import { parseTripData } from "lib/utils";
 
 
-export const loader = async ({ params }: LoaderFunctionArgs) => {
-    const { tripId } = params;
-    if(!tripId) throw new Error ('Trip ID is required');
+////////////////////////////////////////////////////////////////////////////////
+// 1) Loader (server-side)
+////////////////////////////////////////////////////////////////////////////////
 
-    const [trip, trips] = await Promise.all([
-        getTripById(tripId),
-        getAllTrips(4, 0)
-    ]);
+export async function loader({ request }: LoaderFunctionArgs) {
+  const url         = new URL(request.url);
+  const currentPage = Number(url.searchParams.get("page") ?? "1");
+  const pageSize    = 4;
+  const offset      = (currentPage - 1) * pageSize;
 
-    return {
-        trip,
-        allTrips: trips.allTrips.map(({ $id, tripDetail, imageUrls }) => ({
-            id: $id,
-            ...parseTripData(tripDetail),
-            imageUrls: imageUrls ?? []
-        }))
-    }
+  const { allTrips, total } = await getAllTrips(pageSize, offset);
+  console.log(
+    `[loader] page=${currentPage}  limit=${pageSize}  offset=${offset}  fetched=${allTrips.length}`
+  );
+
+  return ({
+    trips: allTrips.map(({ $id, tripDetail, imageUrls }) => ({
+      id: $id,
+      ...parseTripData(tripDetail),
+      imageUrls: imageUrls ?? []
+    })),
+    totalRecords: total,
+    currentPage,
+    pageSize
+  });
 }
 
+////////////////////////////////////////////////////////////////////////////////
+// 2) Component (client-side)
+////////////////////////////////////////////////////////////////////////////////
 
-export const Trips = ({ loaderData }: Route.ComponentProps) => {
+interface LoaderData {
+  trips: Trip[];
+  totalRecords: number;
+  currentPage: number;
+  pageSize: number;
+}
+
+export default function Trips() {
+  const { trips, totalRecords, currentPage, pageSize } =
+    useLoaderData() as LoaderData;
+
+  const [searchParams] = useSearchParams();
+  const navigate        = useNavigate();
+
+  // Always derive from the URL so state + URL stay in sync:
+  const page = Number(searchParams.get("page") ?? String(currentPage));
+
+  const handlePageChange = (newPage: number) => {
+    // push a new URL (no full refresh)
+    navigate({ pathname: "/trips", search: `?page=${newPage}` });
+  };
+
   return (
-    <main className="all-users wrapper">
-        <Header
-         title="Trips"
-         description="View and edit AI-generated travel plans"
-        ctaText="Create New Trip"
+    <main className="wrapper all-trips">
+      <Header
+        title="Trips"
+        description="View and edit AI-generated travel plans"
+        ctaText="Create a trip"
         ctaUrl="/trips/create"
-        />
-    </main>
-  )
-}
+      />
 
-export default Trips;
+      <section>
+        <h1 className="p-24-semibold text-dark-100 mb-4">
+          Manage Created Trips
+        </h1>
+
+        <div className="trip-grid mb-4">
+          {trips.map((trip) => (
+            <TripCard
+              key={trip.id}
+              id={trip.id}
+              name={trip.name}
+              imageUrl={trip.imageUrls[0]}
+              location={trip.itinerary?.[0]?.location ?? ""}
+              tags={[trip.interests, trip.travelStyle]}
+              price={trip.estimatedPrice}
+            />
+          ))}
+        </div>
+
+        <PagerComponent
+          totalRecordsCount={totalRecords}
+          pageSize={pageSize}
+          currentPage={page}
+          click={({ currentPage }) => handlePageChange(currentPage)}
+          cssClass="!mb-4"
+        />
+      </section>
+    </main>
+  );
+}

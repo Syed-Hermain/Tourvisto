@@ -1,14 +1,11 @@
 import { Query } from "appwrite";
 import { appwriteConfig, database } from "./client";
-import { data } from "react-router";
 
 export const getAllTrips = async (limit: number, offset: number) => {
   const allTrips = await database.listDocuments(
     appwriteConfig.databaseId,
     appwriteConfig.tripsCollectionId,
-    [
-      (Query.limit(limit), Query.offset(offset), Query.orderDesc("createdAt"))
-    ]
+    [Query.orderDesc("createdAt"), Query.limit(limit), Query.offset(offset)]
   );
 
   if (allTrips.total === 0) {
@@ -18,17 +15,16 @@ export const getAllTrips = async (limit: number, offset: number) => {
   return { allTrips: allTrips.documents, total: allTrips.total };
 };
 
+export const getTripById = async (tripId: string) => {
+  const trip = await database.getDocument(
+    appwriteConfig.databaseId,
+    appwriteConfig.tripsCollectionId,
+    tripId
+  );
 
-export const getTripById = async(tripId: string)=>{
-    const trip = await database.getDocument(
-        appwriteConfig.databaseId,
-        appwriteConfig.tripsCollectionId,
-        tripId
-    );
-
-    if(!trip.$id){
-        console.log('Trip not found')
-        return null;
-    }
-    return trip;
-}
+  if (!trip.$id) {
+    console.log("Trip not found");
+    return null;
+  }
+  return trip;
+};
