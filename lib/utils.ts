@@ -28,6 +28,7 @@ export function parseMarkdownToJson(markdownText: string): unknown | null {
 
 export function parseTripData(jsonString: string): Trip | null {
   try {
+    
     const data: Trip = JSON.parse(jsonString);
 
     return data;

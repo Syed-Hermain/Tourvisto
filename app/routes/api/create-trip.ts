@@ -75,7 +75,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 
     const imageResponse = await fetch(
-        `https://api.unsplash.com/search/photos?query=${country.name} ${interest} ${travelStyle}&client_id=${unsplashApiKey}`
+        `https://api.unsplash.com/search/photos?query=${country} ${interest} ${travelStyle}&client_id=${unsplashApiKey}`
     )
 
     const imageUrls = (await imageResponse.json()).results.slice(0, 3).map((result: any) => result.urls?.regular || null);
@@ -98,3 +98,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     console.error("Error generating travel plan: ", e);
   }
 };
+
+
+
